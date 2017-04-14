@@ -4,6 +4,7 @@ import WireMessage from './WireMessage';
 import { ERROR, MESSAGE_TYPE } from './constants';
 import { format } from './util';
 import ClientImplementation from './ClientImplementation';
+import BackgroundTimer from 'react-native-background-timer';
 
 /**
  * Repeat keepalive requests, monitor responses.
@@ -30,23 +31,23 @@ export default class {
       this.isReset = false;
       this._client._trace('Pinger.doPing', 'send PINGREQ');
       this._client.socket && this._client.socket.send(this.pingReq);
-      this.timeout = setTimeout(() => this._doPing(), this._keepAliveIntervalMs);
+      this.timeout = BackgroundTimer.setTimeout(() => this._doPing(), this._keepAliveIntervalMs);
     }
   }
 
   reset() {
     this.isReset = true;
     if (this.timeout) {
-      clearTimeout(this.timeout);
+      BackgroundTimer.clearTimeout(this.timeout);
       this.timeout = null;
     }
     if (this._keepAliveIntervalMs > 0) {
-      this.timeout = setTimeout(() => this._doPing(), this._keepAliveIntervalMs);
+      this.timeout = BackgroundTimer.setTimeout(() => this._doPing(), this._keepAliveIntervalMs);
     }
   }
 
   cancel() {
-    clearTimeout(this.timeout);
+    BackgroundTimer.clearTimeout(this.timeout);
     this.timeout = null;
   }
 }
