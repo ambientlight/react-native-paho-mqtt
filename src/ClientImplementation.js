@@ -488,6 +488,7 @@ class ClientImplementation {
     this._trace('Client._handleMessage', wireMessage);
     const connectOptions = this.connectOptions;
     invariant(connectOptions, format(ERROR.INVALID_STATE, ['_handleMessage invoked but connectOptions not set']));
+    this.receivePinger && this.receivePinger.reset();
 
     try {
       if (wireMessage instanceof PublishMessage) {
