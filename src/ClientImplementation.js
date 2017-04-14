@@ -7,6 +7,7 @@ import Pinger from './Pinger';
 import WireMessage from './WireMessage';
 import PublishMessage from './PublishMessage';
 import ConnectMessage from './ConnectMessage';
+import BackgroundTimer from 'react-native-background-timer';
 
 type ConnectOptions = {
   timeout?: number,
@@ -172,7 +173,7 @@ class ClientImplementation {
     }
 
     if (connectOptions.timeout) {
-      this._connectTimeout = setTimeout(() => {
+      this._connectTimeout = BackgroundTimer.setTimeout(() => {
         this._disconnected(ERROR.CONNECT_TIMEOUT.code, format(ERROR.CONNECT_TIMEOUT));
       }, connectOptions.timeout);
     }
@@ -200,7 +201,7 @@ class ClientImplementation {
     }
 
     if (subscribeOptions.timeout && subscribeOptions.onFailure) {
-      wireMessage.timeOut = setTimeout(() => {
+      wireMessage.timeOut = BackgroundTimer.setTimeout(() => {
         subscribeOptions.onFailure(new Error(format(ERROR.SUBSCRIBE_TIMEOUT), ERROR.SUBSCRIBE_TIMEOUT.code));
       }, subscribeOptions.timeout);
     }
@@ -227,7 +228,7 @@ class ClientImplementation {
       };
     }
     if (unsubscribeOptions.timeout) {
-      wireMessage.timeOut = setTimeout(() => {
+      wireMessage.timeOut = BackgroundTimer.setTimeout(() => {
         unsubscribeOptions.onFailure(new Error(format(ERROR.UNSUBSCRIBE_TIMEOUT), ERROR.UNSUBSCRIBE_TIMEOUT.code));
       }, unsubscribeOptions.timeout);
     }
@@ -498,7 +499,7 @@ class ClientImplementation {
 
       switch (wireMessage.type) {
         case MESSAGE_TYPE.CONNACK:
-          clearTimeout(this._connectTimeout);
+          BackgroundTimer.clearTimeout(this._connectTimeout);
 
           // If we have started using clean session then clear up the local state.
           if (connectOptions.cleanSession) {
@@ -597,7 +598,7 @@ class ClientImplementation {
           sentMessage = this._outboundMessagesInFlight[messageIdentifier.toString()];
           if (sentMessage) {
             if (sentMessage.timeOut) {
-              clearTimeout(sentMessage.timeOut);
+              BackgroundTimer.clearTimeout(sentMessage.timeOut);
             }
             invariant(wireMessage.returnCode instanceof Uint8Array, format(ERROR.INVALID_STATE, ['SUBACK WireMessage with invalid returnCode']));
             // This will need to be fixed when we add multiple topic support
@@ -617,7 +618,7 @@ class ClientImplementation {
           sentMessage = this._outboundMessagesInFlight[messageIdentifier.toString()];
           if (sentMessage && (sentMessage instanceof WireMessage) && sentMessage.type === MESSAGE_TYPE.UNSUBSCRIBE) {
             if (sentMessage.timeOut) {
-              clearTimeout(sentMessage.timeOut);
+              BackgroundTimer.clearTimeout(sentMessage.timeOut);
             }
             sentMessage.unSubAckReceived && sentMessage.unSubAckReceived();
             delete this._outboundMessagesInFlight[messageIdentifier.toString()];
@@ -698,7 +699,7 @@ class ClientImplementation {
     this.sendPinger && this.sendPinger.cancel();
     this.receivePinger && this.receivePinger.cancel();
     if (this._connectTimeout) {
-      clearTimeout(this._connectTimeout);
+      BackgroundTimer.clearTimeout(this._connectTimeout);
     }
     // Clear message buffers.
     this._messagesAwaitingDispatch = [];
