@@ -47,10 +47,8 @@ class ClientImplementation {
   traceFunction: ?Function;
   _msg_queue = null;
   _connectTimeout: ?number;
-  /* The sendPinger monitors how long we allow before we send data to prove to the server that we are alive. */
-  sendPinger = null;
-  /* The receivePinger monitors how long we allow before we require evidence that the server is alive. */
-  receivePinger = null;
+  /* The pinger monitors how long we allow before we require evidence that the server is alive. */
+  pinger = null;
 
   receiveBuffer: ?Uint8Array = null;
 
@@ -159,6 +157,7 @@ class ClientImplementation {
 
     this.socket.onmessage = (event) => {
       this._trace('socket.onmessage', event.data);
+      this.pinger && this.pinger.reset();
       const messages = this._deframeMessages(event.data);
       messages && messages.forEach(message => this._handleMessage(message));
     };
@@ -168,8 +167,7 @@ class ClientImplementation {
 
     if (connectOptions.keepAliveInterval > 0) {
       //Cast this to any to deal with flow/IDE bug: https://github.com/facebook/flow/issues/2235#issuecomment-239357626
-      this.sendPinger = new Pinger((this: any), connectOptions.keepAliveInterval);
-      this.receivePinger = new Pinger((this: any), connectOptions.keepAliveInterval);
+      this.pinger = new Pinger((this: any), connectOptions.keepAliveInterval);
     }
 
     if (connectOptions.timeout) {
@@ -423,7 +421,6 @@ class ClientImplementation {
       wireMessage.onDispatched && wireMessage.onDispatched();
     }
 
-    this.sendPinger && this.sendPinger.reset();
   }
 
   /**
@@ -488,7 +485,6 @@ class ClientImplementation {
     this._trace('Client._handleMessage', wireMessage);
     const connectOptions = this.connectOptions;
     invariant(connectOptions, format(ERROR.INVALID_STATE, ['_handleMessage invoked but connectOptions not set']));
-    this.receivePinger && this.receivePinger.reset();
 
     try {
       if (wireMessage instanceof PublishMessage) {
@@ -628,8 +624,6 @@ class ClientImplementation {
           break;
 
         case MESSAGE_TYPE.PINGRESP:
-          // The sendPinger or receivePinger may have sent a ping, the receivePinger has already been reset.
-          this.sendPinger && this.sendPinger.reset();
           break;
 
         case MESSAGE_TYPE.DISCONNECT:
@@ -649,8 +643,6 @@ class ClientImplementation {
   _socketSend(wireMessage: WireMessage) {
     this._trace('Client._socketSend', wireMessage);
     this.socket && this.socket.send(wireMessage.encode());
-    /* We have proved to the server we are alive. */
-    this.sendPinger && this.sendPinger.reset();
   }
 
   /** @ignore */
@@ -697,8 +689,7 @@ class ClientImplementation {
   _disconnected(errorCode?: number, errorText?: string) {
     this._trace('Client._disconnected', errorCode, errorText);
 
-    this.sendPinger && this.sendPinger.cancel();
-    this.receivePinger && this.receivePinger.cancel();
+    this.pinger && this.pinger.cancel();
     if (this._connectTimeout) {
       BackgroundTimer.clearTimeout(this._connectTimeout);
     }
